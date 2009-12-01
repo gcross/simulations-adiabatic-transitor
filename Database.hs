@@ -22,6 +22,7 @@ import Data.ByteString (ByteString,unpack)
 import Data.ByteString.Internal
 import Data.Complex
 import Data.ConfigFile
+import Data.UUID
 import Data.Word
 
 import Database.Enumerator
@@ -34,6 +35,7 @@ import Foreign.Storable
 
 import System.Exit
 import System.IO.Unsafe
+import System.Random
 
 import VMPS.States
 import VMPS.Tensors
@@ -132,14 +134,14 @@ decode (x:rest) = x:decode rest
 -- @+node:gcross.20091130171453.1823:encode
 encode :: [Word8] -> [Word8]
 encode [] = []
-encode (0:rest) = slash:slash:zero:zero:zero:encode rest
-encode (39:rest) = slash:slash:zero:four:seven:encode rest
-encode (92:rest) = slash:slash:one:three:four:encode rest
+encode (0:rest) = slash:zero:zero:zero:encode rest
+encode (39:rest) = slash:zero:four:seven:encode rest
+encode (92:rest) = slash:one:three:four:encode rest
 encode (other:rest)
     | (0 <= other && other <= 31) || (127 <= other && other <= 255)
       = let (a,remainder) = other `divMod` 64
             (b,c) = remainder `divMod` 8
-        in slash:slash:(a+zero):(b+zero):(c+zero):encode rest
+        in slash:(a+zero):(b+zero):(c+zero):encode rest
     | otherwise
       = other:encode rest
 -- @-node:gcross.20091130171453.1823:encode
@@ -184,6 +186,11 @@ stateIteratee
         $!
         fromEncodedString physical_dimension left_bandwidth_dimension right_bandwidth_dimension site_data
 -- @-node:gcross.20091130182553.1676:stateIteratee
+-- @+node:gcross.20091201074437.1276:generateRandomUUIDAsString
+generateRandomUUIDAsString :: (MonadIO m) => m String
+generateRandomUUIDAsString = liftIO (fmap show (randomIO :: IO UUID))
+
+-- @-node:gcross.20091201074437.1276:generateRandomUUIDAsString
 -- @+node:gcross.20091130182553.2003:fetchState
 fetchState state_id =
     doQuery
@@ -195,6 +202,82 @@ fetchState state_id =
             Left [] -> return Nothing
             Right state -> return (Just state)
 -- @-node:gcross.20091130182553.2003:fetchState
+-- @+node:gcross.20091201074437.1277:insertRows
+insertRows name statement type_ids rows =
+    withPreparedStatement
+        (prepareCommand name (sql statement) type_ids)
+        (\prepared_statement ->
+            (forM rows $
+                \row -> withBoundStatement prepared_statement row $
+                    \bound_statement -> execDML bound_statement
+            )
+            >>=
+            (return . sum)
+        )
+    >>=
+    \number_of_rows_inserted ->
+        unless (number_of_rows_inserted == length rows) . error $
+            "Inserted "
+            ++ show number_of_rows_inserted ++
+            " rows, but had been given "
+            ++ show (length rows) ++
+            " rows."
+-- @-node:gcross.20091201074437.1277:insertRows
+-- @+node:gcross.20091130222822.1614:storeState
+storeState (CanonicalStateRepresentation number_of_sites first_tensor rest_tensors) =
+    generateRandomUUIDAsString
+    >>=
+    (\state_id ->
+        let toRow :: (Pinnable a, StateSiteTensorClass a, DBBind String s stmt bo, DBBind Int s stmt bo) =>
+                     Int -> a -> [BindA s stmt bo]
+            toRow site_number site_tensor =
+                [bindP $ state_id
+                ,bindP $ site_number
+                ,bindP $ physicalDimensionOfState site_tensor
+                ,bindP $ leftBandwidthOfState site_tensor
+                ,bindP $ rightBandwidthOfState site_tensor
+                ,bindP $ toEncodedString site_tensor
+                ]
+            rows = toRow 0 first_tensor:zipWith toRow [1..] rest_tensors
+        in insertRows
+                "insert_tensor"
+                "insert into state_site_tensors (state_id, site_number, physical_dimension, left_bandwidth_dimension, right_bandwidth_dimension, data) values ((?::uuid),?,?,?,?,(?::bytea))"
+                [pgTypeOid (undefined :: String)
+                ,pgTypeOid (undefined :: Int)
+                ,pgTypeOid (undefined :: Int)
+                ,pgTypeOid (undefined :: Int)
+                ,pgTypeOid (undefined :: Int)
+                ,pgTypeOid (undefined :: String)
+                ]
+                rows
+            >>
+            return state_id
+    )
+-- @-node:gcross.20091130222822.1614:storeState
+-- @+node:gcross.20091201074437.1275:storeSolution
+storeSolution levels = do
+    solution_id <- generateRandomUUIDAsString
+    rows <- forM (zip [0..] levels) $
+        \(level_number,(energy,state)) ->
+            storeState state
+            >>=
+            \state_id -> return
+                [bindP (solution_id :: String)
+                ,bindP (level_number :: Int)
+                ,bindP (state_id :: String)
+                ,bindP (energy :: Double)
+                ]
+    insertRows
+        "insert_solution_level"
+        "insert into solutions (solution_id, level_number, state_id, energy) values ((?::uuid),?,(?::uuid),?)"
+        [pgTypeOid (undefined :: String)
+        ,pgTypeOid (undefined :: Int)
+        ,pgTypeOid (undefined :: String)
+        ,pgTypeOid (undefined :: Double)
+        ]
+        rows
+    return solution_id
+-- @-node:gcross.20091201074437.1275:storeSolution
 -- @-node:gcross.20091130171453.1821:Functions
 -- @-others
 -- @-node:gcross.20091130153357.1251:@thin Database.hs

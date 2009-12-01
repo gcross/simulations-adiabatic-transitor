@@ -18,6 +18,9 @@ import Data.ConfigFile
 import Data.IORef
 import Data.UUID
 
+import Database.Enumerator
+import Database.PostgreSQL.Enumerator
+
 import System
 import System.Posix.Clock
 
@@ -84,9 +87,11 @@ main = do
         number_of_trials_needed = 3
         bandwidth_increment = 5
         initial_bandwidth = 2
-        number_of_levels = 1
+        number_of_levels = 3
         bandwidth_increase_energy_change_convergence_criterion = 1e-4
         multisweep_energy_change_convergence_criterion = 1e-5
+
+    connection <- makeConnection "vmps"
 
     next_bandwidth_ref <- newIORef initial_bandwidth
     level_number_ref <- newIORef 1
@@ -133,6 +138,13 @@ main = do
     forM_ energies $ \energy -> do
         putStr "\t"
         putStrLn . show $ energy
+
+    solution_ids <-
+        withSession connection $
+            withTransaction ReadCommitted $
+                storeSolution (zip energies states)
+    putStrLn solution_ids
+
     getTime ProcessCPUTime >>= putStrLn . show
 -- @-node:gcross.20091120111528.1236:main
 -- @-others

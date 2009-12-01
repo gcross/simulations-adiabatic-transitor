@@ -20,7 +20,7 @@ import Data.IORef
 import Database.Enumerator
 import Database.PostgreSQL.Enumerator
 
-import System
+import System.Environment
 import System.Posix.Clock
 
 import Text.Printf
@@ -39,37 +39,47 @@ import Debug.Trace
 -- @nl
 
 -- @+others
+-- @+node:gcross.20091130222822.1616:Operator tensors
+-- @+at
+--  rightmost is ZX
+--  
+--  X on first, none on last
+--  on all others, must be symmetric
+--  then s = 1/2
+--  
+-- @-at
+-- @@c
+
+makeModelOperatorSiteTensors :: Double -> Int -> [OperatorSiteTensor]
+makeModelOperatorSiteTensors s =
+    makeModelWithSpecialEndpointsOperatorSiteTensors
+        4
+        [(1 --> 1) 1.0 I
+        ,(1 --> 2) 1.0 Z
+        ,(1 --> 4) (-s) X
+        ]
+        [(1 --> 1) 1.0 I
+        ,(1 --> 2) 1.0 Z
+        ,(2 --> 3) (-(1-s)) X
+        ,(3 --> 4) 1.0 Z
+        ,(1 --> 4) (-s) X
+        ,(4 --> 4) 1.0 I
+        ]
+        [(2 --> 1) (-(1-s)) X
+        ,(3 --> 1) 1.0 Z
+        ,(4 --> 1) 1.0 I
+        ]
+-- @-node:gcross.20091130222822.1616:Operator tensors
 -- @+node:gcross.20091125100559.1251:main
 main = do
-    let state_id = "75641026-6fb6-442e-8a92-9f7fe451c6b7"
-        perturbation_coefficient = 1
+    state_id <- fmap head getArgs
 
     connection <- makeConnection "reader"
 
     Just state <- withSession connection $ fetchState state_id
 
-    let operator_site_tensors =
-            makeModelWithSpecialEndpointsOperatorSiteTensors
-                6
-                [(1 --> 1) (-perturbation_coefficient/2) X
-                ,(1 --> 3) 1 I
-                ,(1 --> 5) 1 I
-                ]
-                [(1 --> 1) 1 I
-                ,(1 --> 2) 1 X
-                ,(2 --> 2) 1 I
-                ,(3 --> 3) 1 I
-                ,(3 --> 4) 1 X
-                ,(4 --> 4) 1 I
-                ,(5 --> 5) 1 I
-                ,(5 --> 6) 1 Z
-                ,(6 --> 6) 1 I
-                ]
-                [(2 --> 1) 1 I
-                ,(4 --> 1) (-perturbation_coefficient/2) X
-                ,(6 --> 1) 1 I
-                ]
-                (canonicalStateNumberOfSites state)
+    let s = 0.5
+        operator_site_tensors = makeModelOperatorSiteTensors s (canonicalStateNumberOfSites state)
         energy = expectationOf operator_site_tensors state
     putStrLn . show $ energy
 -- @-node:gcross.20091125100559.1251:main
