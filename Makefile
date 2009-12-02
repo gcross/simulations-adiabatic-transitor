@@ -3,7 +3,7 @@
 #@@language Makefile
 #@@tabwidth 4
 
-all: compute-energy # simulate-adiabatic test compute-energy
+all: simulate-adiabatic-constant-angle # compute-energy test
 
 LIBS = -llapack -larpack -lblas -lgfortran
 

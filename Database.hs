@@ -59,6 +59,28 @@ nine = eight+1
 slash = 92
 -- @-node:gcross.20091130171453.1822:digits
 -- @-node:gcross.20091130171453.1820:Values
+-- @+node:gcross.20091201234821.1622:enumerators
+-- @+node:gcross.20091201234821.1623:getX
+get1 :: (Monad m) => a -> IterAct m (Maybe a)
+get1 x _ = return $ Left $ Just $! x
+
+get2 :: (Monad m) => a -> b -> IterAct m (Maybe (a,b))
+get2 x y _ = return $ Left $ Just $! (x,y)
+-- @-node:gcross.20091201234821.1623:getX
+-- @+node:gcross.20091201234821.1624:fetchX
+fetch1 :: (Monad m) => a -> IterAct m [a]
+fetch1 a accum = result' (a:accum) --'
+
+fetch2 :: (Monad m) => a -> b -> IterAct m [(a, b)]
+fetch2 a b accum = result' ((a, b):accum) --'
+
+fetch3 :: (Monad m) => a -> b -> c -> IterAct m [(a, b, c)]
+fetch3 a b c accum = result' ((a, b, c):accum) --'
+
+fetch4 :: (Monad m) => a -> b -> c -> d -> IterAct m [(a, b, c, d)]
+fetch4 a b c d accum = result' ((a, b, c, d):accum) --'
+-- @-node:gcross.20091201234821.1624:fetchX
+-- @-node:gcross.20091201234821.1622:enumerators
 -- @+node:gcross.20091130171453.1821:Functions
 -- @+node:gcross.20091130153357.1583:makeConnection
 makeConnection heading = do
