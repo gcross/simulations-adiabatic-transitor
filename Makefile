@@ -3,15 +3,20 @@
 #@@language Makefile
 #@@tabwidth 4
 
-all: simulate-adiabatic-constant-angle bitslayer-adiabatic-sweep # compute-energy test
+all: \
+	programs/simulate-adiabatic-constant-angle \
+	programs/bitslayer-adiabatic-constant-angle-sweep \
+	programs/plot-adiabatic-constant-angle-gap \
+	programs/simulate-adiabatic-random-angles \
+	programs/condor-adiabatic-random-angles-sweep
 
 LIBS = -llapack -larpack -lblas -lgfortran
 
-HFLAGS = -O2 -fvia-C -optc=-O3
+HFLAGS = -O2 -fvia-C -optc=-O3 -isources
 
 GHCMAKE = ghc --make ${HFLAGS} ${LIBS}
 
-%: %.hs Makefile Database.hs
+programs/%: sources/%.hs Makefile sources/Database.hs sources/VMPSDatabase.hs
 	${GHCMAKE} $< -o $@
 #@-node:gcross.20091120111528.1231:@thin Makefile
 #@-leo
