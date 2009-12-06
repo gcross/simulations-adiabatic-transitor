@@ -10,6 +10,8 @@
 
 -- @<< Import needed modules >>
 -- @+node:gcross.20091120111528.1235:<< Import needed modules >>
+import Acme.Dont
+
 import Control.Monad
 import Control.Monad.Error
 import Control.Monad.Trans
@@ -36,7 +38,7 @@ import VMPS.Paulis
 import VMPS.States
 import VMPS.Tensors
 
-import Database
+import VMPSDatabase
 
 import Debug.Trace
 -- @-node:gcross.20091120111528.1235:<< Import needed modules >>
@@ -62,7 +64,7 @@ makeModelOperatorSiteTensors angle =
         4
         [(1 --> 1) pI
         ,(1 --> 2) pZ
-        ,(1 --> 4) ((-s) *: op)
+        ,(1 --> 4) pX
         ]
         [(1 --> 1) pI
         ,(1 --> 2) pZ
@@ -94,9 +96,9 @@ main = do
         number_of_trials_needed = 3
         bandwidth_increment = 5
         initial_bandwidth = 2
-        number_of_levels = 3
         bandwidth_increase_energy_change_convergence_criterion = 1e-4
-        multisweep_energy_change_convergence_criterion = 1e-5
+        multisweep_energy_change_convergence_criterion = 1e-4
+        level_similarity_tolerance = 1e-3
 
     connection <- makeConnection "vmps"
     (result,connection) <-
@@ -112,6 +114,8 @@ main = do
         putStrLn "This data point has already been sampled."
         exitFailure
 
+    -- @    << Define callbacks >>
+    -- @+node:gcross.20091205211300.1710:<< Define callbacks >>
     next_bandwidth_ref <- newIORef initial_bandwidth
     level_number_ref <- newIORef 1
 
@@ -133,10 +137,51 @@ main = do
             next_bandwidth <- readIORef next_bandwidth_ref
             let current_bandwidth = next_bandwidth-bandwidth_increment
             unless (current_bandwidth <= 2) $
-                putStrLn $ heading ++ (printf "bandwidth = %i, sweep energy = %f" current_bandwidth (chainEnergy latest_chain)        )
+                putStrLn $ heading ++ (printf "bandwidth = %i, sweep energy = %f" current_bandwidth (chainEnergy latest_chain) )
+    -- @-node:gcross.20091205211300.1710:<< Define callbacks >>
+    -- @nl
 
-    (energies :: [Double],states :: [CanonicalStateRepresentation],_) <- fmap unzip3 $
-        solveForMultipleLevelsWithCallbacks
+    -- @    << Run simulation >>
+    -- @+node:gcross.20091202133456.1303:<< Run simulation >>
+    let findFirstTwoLevels attempt_number =
+            (fmap unzip3 $ 
+                solveForMultipleLevelsWithCallbacks
+                    callback_to_decide_whether_to_declare_victory_with_trial
+                    (newChainCreator
+                        (writeIORef next_bandwidth_ref (initial_bandwidth+bandwidth_increment))
+                        operator_site_tensors
+                        2 initial_bandwidth
+                    )
+                    callback_to_increase_bandwidth
+                    callback_after_each_sweep
+                    ignoreSiteCallback
+                    bandwidth_increase_energy_change_convergence_criterion
+                    multisweep_energy_change_convergence_criterion
+                    0
+                    1000
+                    2
+                    []
+            ) >>= \result@([ground_energy_1, ground_energy_2],states,overlap_tensor_trios) ->
+                    if abs (ground_energy_1 - ground_energy_2) < level_similarity_tolerance
+                        then return result
+                        else putStrLn "The first two levels do not agree!"
+                             >>
+                             if attempt_number < 3
+                                then do
+                                    putStrLn "Restarting simulation..."
+                                    writeIORef level_number_ref 1
+                                    findFirstTwoLevels (attempt_number + 1)
+                                else do
+                                    putStrLn "Three attempts to find the ground levels have failed.  Giving up!"
+                                    exitFailure
+
+    ( [ground_energy_1, ground_energy_2]
+     ,[ground_state_1 , ground_state_2]
+     ,ground_states_overlap_tensor_trios
+     ) <- findFirstTwoLevels 1
+
+    ([excited_energy],[excited_state],_) <-
+        fmap unzip3 $ solveForMultipleLevelsWithCallbacks
             callback_to_decide_whether_to_declare_victory_with_trial
             (newChainCreator
                 (writeIORef next_bandwidth_ref (initial_bandwidth+bandwidth_increment))
@@ -150,51 +195,55 @@ main = do
             multisweep_energy_change_convergence_criterion
             0
             1000
-            number_of_levels
-            []
+            1
+            ground_states_overlap_tensor_trios
+
+    let energies = [ground_energy_1,ground_energy_2,excited_energy]
+    -- @-node:gcross.20091202133456.1303:<< Run simulation >>
+    -- @nl
+
     putStrLn ""
     putStrLn "The energy levels are:"
     forM_ energies $ \energy -> do
         putStr "\t"
         putStrLn . show $ energy
 
-    let [ground_energy_1, ground_energy_2, excited_energy] = energies
-        ground_energy = (ground_energy_1 + ground_energy_2) / 2
-        energy_gap = excited_energy - ground_energy
-        estimated_uncertainty = abs (ground_energy_1 - ground_energy_2)
+    let energy_gap = excited_energy - (ground_energy_1 `max` ground_energy_2)
 
     putStrLn ""
-    putStrLn $
-        "The gap is "
-        ++ show energy_gap ++
-        " +/- "
-        ++ show estimated_uncertainty
+    putStrLn $ "The gap is " ++ show energy_gap
 
-    solution_id <-
-        withSession connection $
-            withTransaction ReadCommitted $ do
-                solution_id <- storeSolution (zip energies states)
-                number_of_rows_inserted <- execDML
-                    (cmdbind "insert into adiabatic_constant_angle_simulations (angle,number_of_sites,energy_gap,estimated_uncertainty,solution_id) values (?,?,?,?,?::uuid);"
-                         [bindP angle
-                         ,bindP number_of_sites
-                         ,bindP energy_gap
-                         ,bindP estimated_uncertainty
-                         ,bindP solution_id
-                         ]
-                    )
-                if (number_of_rows_inserted == 1)
-                    then liftIO $ do
-                        putStrLn ""
-                        putStrLn $ "The id of the stored solution is " ++ solution_id
-                        putStrLn ""
-                    else do
-                        liftIO . putStrLn $
-                            "Error adding the solution to the database. ("
-                            ++ show number_of_rows_inserted ++
-                            " rows inserted.)"
-                        rollback
-                return solution_id
+    -- @    << Store in database >>
+    -- @+node:gcross.20091202133456.1304:<< Store in database >>
+    withSession connection $
+        withTransaction ReadCommitted $ do
+            solution_id <-
+                storeSolution
+                    [(ground_energy_1,ground_state_1)
+                    ,(ground_energy_2,ground_state_2)
+                    ,(excited_energy ,excited_state )
+                    ]
+            number_of_rows_inserted <- execDML
+                (cmdbind "insert into adiabatic_constant_angle_simulations (angle,number_of_sites,energy_gap,solution_id) values (?,?,?,?::uuid);"
+                     [bindP angle
+                     ,bindP number_of_sites
+                     ,bindP energy_gap
+                     ,bindP solution_id
+                     ]
+                )
+            if (number_of_rows_inserted == 1)
+                then liftIO $ do
+                    putStrLn ""
+                    putStrLn $ "The id of the stored solution is " ++ solution_id
+                    putStrLn ""
+                else do
+                    liftIO . putStrLn $
+                        "Error adding the solution to the database. ("
+                        ++ show number_of_rows_inserted ++
+                        " rows inserted.)"
+                    rollback
+    -- @-node:gcross.20091202133456.1304:<< Store in database >>
+    -- @nl
 
     getTime ProcessCPUTime >>= putStrLn . ("The elapsed time was " ++) . show
 -- @-node:gcross.20091120111528.1236:main
