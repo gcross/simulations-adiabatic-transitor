@@ -6,19 +6,20 @@ import Control.Monad
 
 import System.Process
 
-simulation_parameters =
-    [(2,20)
+simulation_parameters = concat
+    [replicate 20  (1 ,160)
+    -- ,replicate 10  (1 ,320)
     ]
 
 header =
     unlines
-        ["Executable = simulate-adiabatic-random-angles"
+        ["Executable = programs/simulate-adiabatic-random-angles"
         ,"Universe = vanilla"
         ,"Error  = logs/err.$(cluster)"
         ,"Output = logs/out.$(cluster)"
         ,"Log    = logs/log.$(cluster)"
         ,""
-        ,"Environment = \"LD_LIBRARY_PATH=/phys/users/gcross/local/lib\""
+        ,"Environment = \"LD_LIBRARY_PATH=/phys/users/gcross/local/lib:/phys/users/gcross/local/lib64\""
         ,""
         ]
 
