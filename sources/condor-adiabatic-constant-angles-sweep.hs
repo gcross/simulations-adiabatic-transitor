@@ -1,5 +1,5 @@
 -- @+leo-ver=4-thin
--- @+node:gcross.20091205211300.2400:@thin condor-adiabatic-random-angles-sweep.hs
+-- @+node:gcross.20091209165001.1332:@thin condor-adiabatic-constant-angles-sweep.hs
 -- @@language haskell
 
 import Control.Monad
@@ -48,5 +48,5 @@ main = do
         )
         $
         simulation_parameters
--- @-node:gcross.20091205211300.2400:@thin condor-adiabatic-random-angles-sweep.hs
+-- @-node:gcross.20091209165001.1332:@thin condor-adiabatic-constant-angles-sweep.hs
 -- @-leo

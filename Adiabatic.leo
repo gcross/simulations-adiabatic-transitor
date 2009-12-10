@@ -18,6 +18,10 @@
 <v t="gcross.20091205211300.1721"><vh>@thin simulate-adiabatic-random-angles.hs</vh></v>
 <v t="gcross.20091205211300.2400"><vh>@thin condor-adiabatic-random-angles-sweep.hs</vh></v>
 </v>
+<v t="gcross.20091209165001.1320"><vh>Random restricted angles</vh>
+<v t="gcross.20091209165001.1321"><vh>@thin simulate-adiabatic-restricted-random-angles.hs</vh></v>
+<v t="gcross.20091209165001.1330"><vh>@thin condor-adiabatic-restricted-random-angles-sweep.hs</vh></v>
+</v>
 <v t="gcross.20091201234821.1627"><vh>Constant angle</vh>
 <v t="gcross.20091120111528.1233"><vh>@thin simulate-adiabatic-constant-angle.hs</vh></v>
 <v t="gcross.20091201234821.1630"><vh>@thin plot-adiabatic-constant-angle-gap.hs</vh></v>
@@ -31,5 +35,6 @@
 <t tx="gcross.20091201234821.1627"></t>
 <t tx="gcross.20091205211300.1711"></t>
 <t tx="gcross.20091205211300.2401"></t>
+<t tx="gcross.20091209165001.1320"></t>
 </tnodes>
 </leo_file>

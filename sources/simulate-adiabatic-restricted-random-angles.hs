@@ -1,15 +1,15 @@
 -- @+leo-ver=4-thin
--- @+node:gcross.20091205211300.1721:@thin simulate-adiabatic-random-angles.hs
+-- @+node:gcross.20091209165001.1321:@thin simulate-adiabatic-restricted-random-angles.hs
 -- @@language Haskell
 
 -- @<< Language extensions >>
--- @+node:gcross.20091205211300.1722:<< Language extensions >>
+-- @+node:gcross.20091209165001.1322:<< Language extensions >>
 {-# LANGUAGE ScopedTypeVariables #-}
--- @-node:gcross.20091205211300.1722:<< Language extensions >>
+-- @-node:gcross.20091209165001.1322:<< Language extensions >>
 -- @nl
 
 -- @<< Import needed modules >>
--- @+node:gcross.20091205211300.1723:<< Import needed modules >>
+-- @+node:gcross.20091209165001.1323:<< Import needed modules >>
 import Acme.Dont
 
 import Control.Monad
@@ -42,11 +42,11 @@ import VMPS.Tensors
 import VMPSDatabase
 
 import Debug.Trace
--- @-node:gcross.20091205211300.1723:<< Import needed modules >>
+-- @-node:gcross.20091209165001.1323:<< Import needed modules >>
 -- @nl
 
 -- @+others
--- @+node:gcross.20091205211300.1724:Operator tensors
+-- @+node:gcross.20091209165001.1324:Operator tensors
 -- @+at
 --  rightmost is ZX
 --  
@@ -59,9 +59,9 @@ import Debug.Trace
 
 s = 0.5
 
-makeModelOperatorSiteTensor :: Double -> OperatorSiteTensor
-makeModelOperatorSiteTensor angle =
-    let op = ((cos (pi / 2 * angle) :+ 0) *: pX) + ((sin (pi / 2 * angle) :+ 0) *: pY)
+makeModelOperatorSiteTensor :: Int -> OperatorSiteTensor
+makeModelOperatorSiteTensor multiplier =
+    let op = ((cos (pi / 2 * fromIntegral multiplier) :+ 0) *: pX) + ((sin (pi / 2 * fromIntegral multiplier) :+ 0) *: pY)
     in makeOperatorSiteTensorFromSpecification 4 4
         [(1 --> 1) pI
         ,(1 --> 2) pZ
@@ -89,11 +89,11 @@ makeModelOperatorSiteTensors :: Int -> IO [OperatorSiteTensor]
 makeModelOperatorSiteTensors number_of_sites = do
     first_half_tensors <-
         fmap (map makeModelOperatorSiteTensor) $
-            replicateM ((number_of_sites `div` 2) - 1) (randomRIO (0,4))
+            replicateM ((number_of_sites `div` 2) - 1) (randomRIO (0,3))
     let second_half_tensors = reverse first_half_tensors
     middle_tensors <- 
         if odd number_of_sites
-            then fmap ((:[]).makeModelOperatorSiteTensor) (randomRIO (0,4))
+            then fmap ((:[]).makeModelOperatorSiteTensor) (randomRIO (0,3))
             else return []
     return $
         [first_operator_site_tensor]
@@ -105,16 +105,16 @@ makeModelOperatorSiteTensors number_of_sites = do
         second_half_tensors
         ++
         [last_operator_site_tensor]
--- @-node:gcross.20091205211300.1724:Operator tensors
--- @+node:gcross.20091205211300.1725:analyzeTrialEnergies
+-- @-node:gcross.20091209165001.1324:Operator tensors
+-- @+node:gcross.20091209165001.1325:analyzeTrialEnergies
 data TrialAnalysis = TrialDidBetter | TrialDidWorse | TrialDidTheSame
 
 analyzeTrialEnergies tolerance best_energy trial_energy
     | best_energy - trial_energy > tolerance = TrialDidBetter
     | trial_energy - best_energy > tolerance = TrialDidWorse
     | otherwise = TrialDidTheSame
--- @-node:gcross.20091205211300.1725:analyzeTrialEnergies
--- @+node:gcross.20091205211300.1726:main
+-- @-node:gcross.20091209165001.1325:analyzeTrialEnergies
+-- @+node:gcross.20091209165001.1326:main
 main = do
     args <- getArgs
     let number_of_runs = read (args !! 0)
@@ -136,7 +136,7 @@ doSimulation number_of_runs_remaining number_of_sites connection = do
         level_similarity_tolerance = 1e-3
 
     -- @    << Define callbacks >>
-    -- @+node:gcross.20091205211300.1727:<< Define callbacks >>
+    -- @+node:gcross.20091209165001.1327:<< Define callbacks >>
     next_bandwidth_ref <- newIORef initial_bandwidth
     level_number_ref <- newIORef 1
 
@@ -159,11 +159,11 @@ doSimulation number_of_runs_remaining number_of_sites connection = do
             let current_bandwidth = next_bandwidth-bandwidth_increment
             unless (current_bandwidth <= 2) $
                 putStrLn $ heading ++ (printf "bandwidth = %i, sweep energy = %f" current_bandwidth (chainEnergy latest_chain) )
-    -- @-node:gcross.20091205211300.1727:<< Define callbacks >>
+    -- @-node:gcross.20091209165001.1327:<< Define callbacks >>
     -- @nl
 
     -- @    << Run simulation >>
-    -- @+node:gcross.20091205211300.1728:<< Run simulation >>
+    -- @+node:gcross.20091209165001.1328:<< Run simulation >>
     let findFirstTwoLevels attempt_number =
             (fmap unzip3 $ 
                 solveForMultipleLevelsWithCallbacks
@@ -220,7 +220,7 @@ doSimulation number_of_runs_remaining number_of_sites connection = do
             ground_states_overlap_tensor_trios
 
     let energies = [ground_energy_1,ground_energy_2,excited_energy]
-    -- @-node:gcross.20091205211300.1728:<< Run simulation >>
+    -- @-node:gcross.20091209165001.1328:<< Run simulation >>
     -- @nl
 
     putStrLn ""
@@ -239,11 +239,11 @@ doSimulation number_of_runs_remaining number_of_sites connection = do
     let time_in_seconds = ending_time_in_seconds - starting_time_in_seconds
 
     -- @    << Store in database >>
-    -- @+node:gcross.20091205211300.1729:<< Store in database >>
+    -- @+node:gcross.20091209165001.1329:<< Store in database >>
     (1,connection) <- withContinuedSession connection $
         withTransaction ReadCommitted $
             execDML
-                (cmdbind "insert into adiabatic_random_angle_simulations (number_of_sites, ground_energy_1, ground_energy_2, excited_energy, energy_gap, simulation_running_time) values (?,?,?,?,?,?::interval);"
+                (cmdbind "insert into adiabatic_restricted_random_angle_simulations (number_of_sites, ground_energy_1, ground_energy_2, excited_energy, energy_gap, simulation_running_time) values (?,?,?,?,?,?::interval);"
                      [bindP number_of_sites
                      ,bindP ground_energy_1
                      ,bindP ground_energy_2
@@ -252,7 +252,7 @@ doSimulation number_of_runs_remaining number_of_sites connection = do
                      ,bindP (show time_in_seconds ++ " seconds")
                      ]
                 )
-    -- @-node:gcross.20091205211300.1729:<< Store in database >>
+    -- @-node:gcross.20091209165001.1329:<< Store in database >>
     -- @nl
 
     putStrLn $ "The elapsed CPU time for this run was " ++ show time_in_seconds ++ " seconds."
@@ -261,7 +261,7 @@ doSimulation number_of_runs_remaining number_of_sites connection = do
 
     doSimulation (number_of_runs_remaining-1) number_of_sites connection
 
--- @-node:gcross.20091205211300.1726:main
+-- @-node:gcross.20091209165001.1326:main
 -- @-others
--- @-node:gcross.20091205211300.1721:@thin simulate-adiabatic-random-angles.hs
+-- @-node:gcross.20091209165001.1321:@thin simulate-adiabatic-restricted-random-angles.hs
 -- @-leo

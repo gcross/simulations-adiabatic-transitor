@@ -24,7 +24,7 @@ parametersToScript (angle,number_of_sites) =
         ,"#PBS -o logs/out/" ++ job_name
         ,"#PBS -v LD_LIBRARY_PATH=/usr/local/pgsql/lib"
         ,""
-        ,printf "./simulate-adiabatic-constant-angle %f %i" angle number_of_sites
+        ,printf "programs/simulate-adiabatic-constant-angle %f %i" angle number_of_sites
         ]
 
 main = forM_ system_parameters $ \parameters -> do

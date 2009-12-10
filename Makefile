@@ -9,7 +9,9 @@ all: \
 	programs/condor-adiabatic-constant-angles-sweep \
 	programs/plot-adiabatic-constant-angle-gap \
 	programs/simulate-adiabatic-random-angles \
-	programs/condor-adiabatic-random-angles-sweep
+	programs/condor-adiabatic-random-angles-sweep \
+	programs/simulate-adiabatic-restricted-random-angles \
+	programs/condor-adiabatic-restricted-random-angles-sweep
 
 LIBS = -larpack -llapack -lblas -lgfortran
 
