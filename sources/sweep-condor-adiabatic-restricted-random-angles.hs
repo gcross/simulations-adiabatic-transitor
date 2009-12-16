@@ -1,5 +1,5 @@
 -- @+leo-ver=4-thin
--- @+node:gcross.20091209165001.1330:@thin condor-adiabatic-restricted-random-angles-sweep.hs
+-- @+node:gcross.20091209165001.1330:@thin sweep-condor-adiabatic-restricted-random-angles.hs
 -- @@language haskell
 
 import Control.Monad
@@ -11,11 +11,15 @@ import Text.Printf
 simulation_parameters :: [(Int,Int)]
 simulation_parameters = concat
     [replicate  10 (10, 10)
+    ,replicate  10 (10, 15)
     ,replicate  20 ( 5, 20)
-    ,replicate  50 ( 2, 40)
+    ,replicate  20 ( 5, 30)
+    ,replicate  20 ( 5, 40)
+    ,replicate 100 ( 1, 60)
     ,replicate 100 ( 1, 80)
-    ,replicate  40 ( 1,160)
-    ,replicate  20 ( 1,240)
+    ,replicate 100 ( 1,100)
+    ,replicate 100 ( 1,150)
+    ,replicate 100 ( 1,200)
     ]
 
 
@@ -48,5 +52,5 @@ main = do
         ) [0 :: Int ..]
         $
         simulation_parameters
--- @-node:gcross.20091209165001.1330:@thin condor-adiabatic-restricted-random-angles-sweep.hs
+-- @-node:gcross.20091209165001.1330:@thin sweep-condor-adiabatic-restricted-random-angles.hs
 -- @-leo

@@ -32,14 +32,13 @@ import System.Exit
 import Text.Printf
 
 import VMPS.Algorithms
+import VMPS.Database
 import VMPS.EnergyMinimizationChain
 import VMPS.Models
 import VMPS.Operators
 import VMPS.Paulis
 import VMPS.States
 import VMPS.Tensors
-
-import VMPSDatabase
 
 import Debug.Trace
 -- @-node:gcross.20091205211300.1723:<< Import needed modules >>
@@ -61,7 +60,7 @@ s = 0.5
 
 makeModelOperatorSiteTensor :: Double -> OperatorSiteTensor
 makeModelOperatorSiteTensor angle =
-    let op = ((cos (pi / 2 * angle) :+ 0) *: pX) + ((sin (pi / 2 * angle) :+ 0) *: pY)
+    let op = ((cos angle :+ 0) *: pX) + ((sin angle :+ 0) *: pY)
     in makeOperatorSiteTensorFromSpecification 4 4
         [(1 --> 1) pI
         ,(1 --> 2) pZ
@@ -89,11 +88,11 @@ makeModelOperatorSiteTensors :: Int -> IO [OperatorSiteTensor]
 makeModelOperatorSiteTensors number_of_sites = do
     first_half_tensors <-
         fmap (map makeModelOperatorSiteTensor) $
-            replicateM ((number_of_sites `div` 2) - 1) (randomRIO (0,4))
+            replicateM ((number_of_sites `div` 2) - 1) (randomRIO (0,2*pi))
     let second_half_tensors = reverse first_half_tensors
     middle_tensors <- 
         if odd number_of_sites
-            then fmap ((:[]).makeModelOperatorSiteTensor) (randomRIO (0,4))
+            then fmap ((:[]).makeModelOperatorSiteTensor) (randomRIO (0,2*pi))
             else return []
     return $
         [first_operator_site_tensor]
@@ -243,12 +242,13 @@ doSimulation number_of_runs_remaining number_of_sites connection = do
     (1,connection) <- withContinuedSession connection $
         withTransaction ReadCommitted $
             execDML
-                (cmdbind "insert into adiabatic_random_angle_simulations (number_of_sites, ground_energy_1, ground_energy_2, excited_energy, energy_gap, simulation_running_time) values (?,?,?,?,?,?::interval);"
+                (cmdbind "insert into adiabatic_random_angle_simulations (number_of_sites, energy_gap, ground_energy_1, ground_energy_2, excited_energy, convergence_criterion, simulation_running_time) values (?,?,?,?,?,?,?::interval);"
                      [bindP number_of_sites
+                     ,bindP energy_gap
                      ,bindP ground_energy_1
                      ,bindP ground_energy_2
                      ,bindP excited_energy
-                     ,bindP energy_gap
+                     ,bindP (bandwidth_increase_energy_change_convergence_criterion `max` multisweep_energy_change_convergence_criterion)
                      ,bindP (show time_in_seconds ++ " seconds")
                      ]
                 )

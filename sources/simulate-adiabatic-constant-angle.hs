@@ -31,14 +31,13 @@ import System.Exit
 import Text.Printf
 
 import VMPS.Algorithms
+import VMPS.Database
 import VMPS.EnergyMinimizationChain
 import VMPS.Models
 import VMPS.Operators
 import VMPS.Paulis
 import VMPS.States
 import VMPS.Tensors
-
-import VMPSDatabase
 
 import Debug.Trace
 -- @-node:gcross.20091120111528.1235:<< Import needed modules >>
@@ -93,7 +92,6 @@ main = do
     let angle = read $ args !! 0
         number_of_sites = read $ args !! 1
         operator_site_tensors = makeModelOperatorSiteTensors angle number_of_sites
-        number_of_trials_needed = 3
         bandwidth_increment = 5
         initial_bandwidth = 2
         bandwidth_increase_energy_change_convergence_criterion = 1e-4
@@ -213,6 +211,11 @@ main = do
     putStrLn ""
     putStrLn $ "The gap is " ++ show energy_gap
 
+
+    TimeSpec time_in_seconds _ <- getTime ProcessCPUTime
+
+    putStrLn $ "The elapsed CPU time for this run was " ++ show time_in_seconds ++ " seconds."
+
     -- @    << Store in database >>
     -- @+node:gcross.20091202133456.1304:<< Store in database >>
     withSession connection $
@@ -224,11 +227,14 @@ main = do
                     ,(excited_energy ,excited_state )
                     ]
             number_of_rows_inserted <- execDML
-                (cmdbind "insert into adiabatic_constant_angle_simulations (angle,number_of_sites,energy_gap,solution_id) values (?,?,?,?::uuid);"
+                (cmdbind "insert into adiabatic_constant_angle_simulations (angle, number_of_sites, energy_gap, energy_gap_uncertainty, solution_id, convergence_criterion, simulation_running_time) values (?,?,?,?,?::uuid,?,?::interval);"
                      [bindP angle
                      ,bindP number_of_sites
                      ,bindP energy_gap
+                     ,bindP $ abs (ground_energy_1 - ground_energy_2)
                      ,bindP solution_id
+                     ,bindP (bandwidth_increase_energy_change_convergence_criterion `max` multisweep_energy_change_convergence_criterion)
+                     ,bindP (show time_in_seconds ++ " seconds")
                      ]
                 )
             if (number_of_rows_inserted == 1)
@@ -244,8 +250,6 @@ main = do
                     rollback
     -- @-node:gcross.20091202133456.1304:<< Store in database >>
     -- @nl
-
-    getTime ProcessCPUTime >>= putStrLn . ("The elapsed time was " ++) . show
 -- @-node:gcross.20091120111528.1236:main
 -- @-others
 -- @-node:gcross.20091120111528.1233:@thin simulate-adiabatic-constant-angle.hs

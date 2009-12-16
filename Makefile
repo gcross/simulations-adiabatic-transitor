@@ -5,21 +5,24 @@
 
 all: \
 	programs/simulate-adiabatic-constant-angle \
-	programs/bitslayer-adiabatic-constant-angle-sweep \
-	programs/condor-adiabatic-constant-angles-sweep \
+	programs/sweep-bitslayer-adiabatic-constant-angle \
+	programs/sweep-condor-adiabatic-constant-angles \
 	programs/plot-adiabatic-constant-angle-gap \
 	programs/simulate-adiabatic-random-angles \
 	programs/condor-adiabatic-random-angles-sweep \
 	programs/simulate-adiabatic-restricted-random-angles \
 	programs/condor-adiabatic-restricted-random-angles-sweep
 
-LIBS = -larpack -llapack -lblas -lgfortran
+LIBS = 
 
 HFLAGS = -O2 -fvia-C -optc=-O3 -isources
 
-GHCMAKE = ghc --make -static ${HFLAGS} ${LIBS}
+GHCMAKE = ghc --make ${HFLAGS} ${LIBS}
 
-programs/%: sources/%.hs Makefile sources/Database.hs sources/VMPSDatabase.hs
+programs/%: sources/%.hs Makefile /usr/local/lib/VMPS-0.1/ghc-6.10.4/libvmps.a
 	${GHCMAKE} $< -o $@
+
+clean:
+	rm -f programs/* sources/*.o sources/*.hi
 #@-node:gcross.20091120111528.1231:@thin Makefile
 #@-leo

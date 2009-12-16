@@ -1,5 +1,5 @@
 -- @+leo-ver=4-thin
--- @+node:gcross.20091201234821.1626:@thin bitslayer-adiabatic-constant-angle-sweep.hs
+-- @+node:gcross.20091201234821.1626:@thin sweep-bitslayer-adiabatic-constant-angle.hs
 -- @@language Haskell
 
 import Control.Monad
@@ -10,8 +10,8 @@ import Text.Printf
 
 system_parameters = [
         (angle,number_of_sites)
-        |   angle <- [0,1,0.5]
-        ,   number_of_sites <- [10..20] ++ [40,80,160,320,640]
+        |   angle <- [0]
+        ,   number_of_sites <- [10,15,20,30,40,60,80,100,150,200]
     ]
 
 parametersToScript :: (Double,Int) -> String
@@ -32,5 +32,5 @@ main = forM_ system_parameters $ \parameters -> do
     hPutStrLn stdin . parametersToScript $ parameters
     hFlush stdin
     return ()
--- @-node:gcross.20091201234821.1626:@thin bitslayer-adiabatic-constant-angle-sweep.hs
+-- @-node:gcross.20091201234821.1626:@thin sweep-bitslayer-adiabatic-constant-angle.hs
 -- @-leo

@@ -16,7 +16,7 @@ import System.IO
 import System.Console.GetOpt
 import Text.Printf
 
-import Database
+import VMPS.Database
 
 main =
     makeConnection "reader"
