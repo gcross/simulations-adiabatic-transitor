@@ -11,6 +11,7 @@ all: \
 	programs/simulate-adiabatic-random-angles \
 	programs/sweep-condor-adiabatic-random-angles \
 	programs/plot-adiabatic-random-angle-gap \
+	programs/fetch-adiabatic-random-angle-data \
 	programs/simulate-adiabatic-restricted-random-angles \
 	programs/sweep-condor-adiabatic-restricted-random-angles \
 	programs/plot-adiabatic-restricted-random-angle-gap \

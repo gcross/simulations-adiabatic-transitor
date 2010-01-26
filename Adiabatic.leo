@@ -21,6 +21,7 @@
 <v t="gcross.20091205211300.1721"><vh>@thin simulate-adiabatic-random-angles.hs</vh></v>
 <v t="gcross.20091205211300.2400"><vh>@thin sweep-condor-adiabatic-random-angles.hs</vh></v>
 <v t="gcross.20091215183613.1295"><vh>@thin plot-adiabatic-random-angle-gap.hs</vh></v>
+<v t="gcross.20100126114250.1298"><vh>@thin fetch-adiabatic-random-angle-data.hs</vh></v>
 </v>
 <v t="gcross.20091201234821.1627"><vh>Constant angle</vh>
 <v t="gcross.20091120111528.1233"><vh>@thin simulate-adiabatic-constant-angle.hs</vh></v>
