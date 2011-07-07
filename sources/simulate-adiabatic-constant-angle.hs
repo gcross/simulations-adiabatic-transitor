@@ -35,7 +35,7 @@ import VMPS.Database
 import VMPS.EnergyMinimizationChain
 import VMPS.Models
 import VMPS.Operators
-import VMPS.Paulis
+import VMPS.Qubits.Operators
 import VMPS.States
 import VMPS.Tensors
 
@@ -61,20 +61,20 @@ makeModelOperatorSiteTensors angle =
         op = ((cos (pi / 2 * angle) :+ 0) *: pX) + ((sin (pi / 2 * angle) :+ 0) *: pY)
     in makeModelWithSpecialEndpointsOperatorSiteTensors
         4
-        [(1 --> 1) pI
-        ,(1 --> 2) pZ
-        ,(1 --> 4) pX
+        [(1 ⇨ 1) pI
+        ,(1 ⇨ 2) pZ
+        ,(1 ⇨ 4) pX
         ]
-        [(1 --> 1) pI
-        ,(1 --> 2) pZ
-        ,(2 --> 3) ((-(1-s)) *: pX)
-        ,(3 --> 4) pZ
-        ,(1 --> 4) ((-s)*: op)
-        ,(4 --> 4) pI
+        [(1 ⇨ 1) pI
+        ,(1 ⇨ 2) pZ
+        ,(2 ⇨ 3) ((-(1-s)) *: pX)
+        ,(3 ⇨ 4) pZ
+        ,(1 ⇨ 4) ((-s)*: op)
+        ,(4 ⇨ 4) pI
         ]
-        [(2 --> 1) ((-(1-s))*: pX)
-        ,(3 --> 1) pZ
-        ,(4 --> 1) pI
+        [(2 ⇨ 1) ((-(1-s)) *: pX)
+        ,(3 ⇨ 1) pZ
+        ,(4 ⇨ 1) pI
         ]
 -- @-node:gcross.20091120111528.1234:Operator tensors
 -- @+node:gcross.20091120111528.1237:analyzeTrialEnergies
@@ -129,7 +129,7 @@ main = do
         callback_to_increase_bandwidth chain = do
             next_bandwidth <- readIORef next_bandwidth_ref
             writeIORef next_bandwidth_ref (next_bandwidth+bandwidth_increment)
-            increaseChainBandwidth 2 next_bandwidth chain
+            increaseChainBandwidth next_bandwidth chain
         callback_after_each_sweep victory_flag latest_chain = do
             heading <- getHeading
             next_bandwidth <- readIORef next_bandwidth_ref
@@ -146,9 +146,13 @@ main = do
                 solveForMultipleLevelsWithCallbacks
                     callback_to_decide_whether_to_declare_victory_with_trial
                     (newChainCreator
-                        (writeIORef next_bandwidth_ref (initial_bandwidth+bandwidth_increment))
+                        (\number_of_projectors ->
+                            let starting_bandwidth = initial_bandwidth
+                            in writeIORef next_bandwidth_ref (starting_bandwidth+bandwidth_increment)
+                               >>
+                               return starting_bandwidth
+                        )
                         operator_site_tensors
-                        2 initial_bandwidth
                     )
                     callback_to_increase_bandwidth
                     callback_after_each_sweep
@@ -182,9 +186,13 @@ main = do
         fmap unzip3 $ solveForMultipleLevelsWithCallbacks
             callback_to_decide_whether_to_declare_victory_with_trial
             (newChainCreator
-                (writeIORef next_bandwidth_ref (initial_bandwidth+bandwidth_increment))
+                (\number_of_projectors ->
+                    let starting_bandwidth = initial_bandwidth
+                    in writeIORef next_bandwidth_ref (starting_bandwidth+bandwidth_increment)
+                       >>
+                       return starting_bandwidth
+                )
                 operator_site_tensors
-                2 initial_bandwidth
             )
             callback_to_increase_bandwidth
             callback_after_each_sweep
